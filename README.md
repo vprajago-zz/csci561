@@ -1,0 +1,2 @@
+# csci561
+USC CSCI561 AI Fall 2018
