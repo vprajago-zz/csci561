@@ -1,3 +1,5 @@
+import time
+
 from parser import Node, Parser
 
 
@@ -45,6 +47,7 @@ class MultiAgentMinMax:
         for child in self.root.children:
             if child.spla_score == scores[0]:
                 best_moves.append(child.move_taken)
+        print('Best Moves: {}'.format(best_moves))
         return sorted(best_moves)[0], scores
 
 
@@ -135,10 +138,12 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'input2.txt'
+    INPUT = 'input3.txt'
     p = Parser(INPUT)
 
     print_initial_state(p)
+
+    start = time.time()
 
     root = Node(
             all_applicants=p.all_applicants, applicants_selected=[],
@@ -146,9 +151,12 @@ if __name__ == '__main__':
             num_spla=p.num_spla, num_lahsa=p.num_lahsa, num_both=p.num_both,
             depth=0, move_taken=''
             )
+    end = time.time()
 
-    expecti_solver = ExpectiminmaxSolver(root)
-    print('expectiminmax: {}'.format(expecti_solver.run_expectiminmax()))
+    print('Tree Building Done: {}'.format(end - start))
+
+    # expecti_solver = ExpectiminmaxSolver(root)
+    # print('expectiminmax: {}'.format(expecti_solver.run_expectiminmax()))
 
     solver = MultiAgentMinMax(root)
     print('MultiAgentMinMax: {}'.format(solver.run_minimax()))
