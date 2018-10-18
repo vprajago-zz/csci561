@@ -146,7 +146,8 @@ if __name__ == '__main__':
     start = time.time()
 
     root = Node(
-            all_applicants=p.all_applicants, applicants_selected=[],
+            all_applicants=p.all_applicants,
+            applicants_selected=[],
             spla_capacity=p.spla_capacity, lahsa_capacity=p.lahsa_capacity,
             num_spla=p.num_spla, num_lahsa=p.num_lahsa, num_both=p.num_both,
             depth=0, move_taken=''
@@ -154,9 +155,6 @@ if __name__ == '__main__':
     end = time.time()
 
     print('Tree Building Done: {}'.format(end - start))
-
-    # expecti_solver = ExpectiminmaxSolver(root)
-    # print('expectiminmax: {}'.format(expecti_solver.run_expectiminmax()))
 
     solver = MultiAgentMinMax(root)
     print('MultiAgentMinMax: {}'.format(solver.run_minimax()))

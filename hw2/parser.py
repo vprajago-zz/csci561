@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from applicant import Applicant
 
 
@@ -35,26 +33,28 @@ class Node:
             Returns a new capacities list if possible
             Returns none if not possible
         """
-        capacities = deepcopy(self.spla_capacity)
-        for i in range(0, len(applicant.days_needed)):
+        new_capacities = [None] * 7
+        for i in range(0, len(self.spla_capacity)):
+            new_capacities[i] = self.spla_capacity[i]
             if applicant.days_needed[i] == '1':
-                capacities[i] -= 1
-            if capacities[i] < 0:
+                new_capacities[i] -= 1
+            if new_capacities[i] < 0:
                 return None
-        return capacities
+        return new_capacities
 
     def _insert_applicant_into_lahsa(self, applicant):
         """ Tries to insert an applicant into LAHSA capacities
             Returns a new capacities list if possible
             Returns none if not possible
         """
-        capacities = deepcopy(self.lahsa_capacity)
-        for i in range(0, len(applicant.days_needed)):
+        new_capacities = [None] * 7
+        for i in range(0, len(self.lahsa_capacity)):
+            new_capacities[i] = self.lahsa_capacity[i]
             if applicant.days_needed[i] == '1':
-                capacities[i] -= 1
-            if capacities[i] < 0:
+                new_capacities[i] -= 1
+            if new_capacities[i] < 0:
                 return None
-        return capacities
+        return new_capacities
 
     def _insert_qualifying_into_spla(self):
         """ Insert the remaining qualifying SPLA applicants into SPLA """
@@ -121,14 +121,14 @@ class Node:
                 new_capacities = self._insert_applicant_into_spla(applicant)
                 if new_capacities is not None:  # can place this person
                     can_place_something_spla = True
-                    new_selected = deepcopy(self.applicants_selected)
+                    new_selected = list(self.applicants_selected)
                     new_selected.append(i)
                     self.children.append(
                         Node(
                             all_applicants=self.all_applicants,
                             applicants_selected=new_selected,
                             spla_capacity=new_capacities,
-                            lahsa_capacity=deepcopy(self.lahsa_capacity),
+                            lahsa_capacity=self.lahsa_capacity,
                             num_spla=(self.num_spla - 1 if not
                                       applicant.is_lahsa else self.num_spla),
                             num_lahsa=self.num_lahsa,
@@ -142,13 +142,13 @@ class Node:
                 new_capacities = self._insert_applicant_into_lahsa(applicant)
                 if new_capacities is not None:
                     can_place_something_lahsa = True
-                    new_selected = deepcopy(self.applicants_selected)
+                    new_selected = list(self.applicants_selected)
                     new_selected.append(i)
                     self.children.append(
                         Node(
                             all_applicants=self.all_applicants,
                             applicants_selected=new_selected,
-                            spla_capacity=deepcopy(self.spla_capacity),
+                            spla_capacity=self.spla_capacity,
                             lahsa_capacity=new_capacities,
                             num_spla=self.num_spla,
                             num_lahsa=(self.num_lahsa - 1 if not
