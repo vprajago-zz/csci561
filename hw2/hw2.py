@@ -92,7 +92,7 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'input9.txt'
+    INPUT = 'input3.txt'
     p = Parser(INPUT)
 
     print_initial_state(p)
