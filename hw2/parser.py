@@ -1,10 +1,13 @@
 from applicant import Applicant
 
+spla_leaf_nodes = {}
+lahsa_leaf_nodes = {}
+
 
 class Node:
     def __init__(self, all_applicants, applicants_selected, spla_capacity,
                  lahsa_capacity, depth, num_spla, num_lahsa, num_both,
-                 move_taken):
+                 move_taken, num_parking_spots, num_beds):
 
         self.all_applicants = all_applicants  # list of all applicants
         self.applicants_selected = applicants_selected  # list of indices
@@ -18,13 +21,16 @@ class Node:
         self.move_taken = move_taken
         self.spla_score = None
         self.lahsa_score = None
+        self.num_beds = num_beds
+        self.num_parking_spots = num_parking_spots
 
         self.create_children()
 
     def __str__(self):
-        return 'Children: {}, SPLA Cap: {}, LAHSA Cap: {}, num_spla: {}, num_lahsa: {}, num_both: {}, depth: {}, move: {}'.format(
+        return 'Children: {}, SPLA Cap: {}, LAHSA Cap: {}, num_spla: {}, num_lahsa: {}, num_both: {}, applicants_selected: {}, depth: {}, move: {}'.format(
                     self.children, self.spla_capacity, self.lahsa_capacity,
-                    self.num_spla, self.num_lahsa, self.num_both, self.depth,
+                    self.num_spla, self.num_lahsa, self.num_both,
+                    self.applicants_selected, self.depth,
                     self.move_taken
                 )
 
@@ -56,53 +62,190 @@ class Node:
                 return None
         return new_capacities
 
+    def check_greedy_insert_spla(self):
+        """
+        Returns (True, first_applicant) and sets new capacities if greedy
+        insertion works
+        Else returns (False, None)
+        """
+        if len(self.all_applicants) - len(self.applicants_selected) > 7 * self.num_parking_spots:
+            return False, None
+
+        tally = [0] * 7
+        first_applicant = None
+        # count up days across remaining applicants
+        for i in range(0, len(self.all_applicants)):
+            applicant = self.all_applicants[i]
+            if applicant.is_spla and i not in self.applicants_selected:
+                if first_applicant is None:
+                    first_applicant = applicant
+                for j in range(0, len(applicant.days_needed)):
+                    if applicant.days_needed[j] == '1':
+                        tally[j] += 1
+                    if tally[j] > self.num_parking_spots:
+                        return False, None
+
+        # see if we can accommodate
+        for i in range(0, len(self.spla_capacity)):
+            if self.spla_capacity[i] - tally[i] < 0:
+                return False, None
+
+        # actually set the subtraction value if we can accommodate
+        for i in range(0, len(self.spla_capacity)):
+            self.spla_capacity[i] -= tally[i]
+
+        return True, first_applicant
+
+    def check_greedy_insert_lahsa(self):
+        """
+        Returns True, first_applicant and sets new capacities if greedy
+        insertion works
+        Else returns False, None
+        """
+        if len(self.all_applicants) - len(self.applicants_selected) > 7 * self.num_beds:
+            return False, None
+
+        tally = [0] * 7
+        first_applicant = None
+        # count up days across remaining applicants
+        for i in range(0, len(self.all_applicants)):
+            applicant = self.all_applicants[i]
+            if applicant.is_lahsa and i not in self.applicants_selected:
+                if first_applicant is None:
+                    first_applicant = applicant
+                for j in range(0, len(applicant.days_needed)):
+                    if applicant.days_needed[j] == '1':
+                        tally[j] += 1
+                    if tally[j] > self.num_beds:
+                        return False, None
+
+        # see if we can accommodate
+        for i in range(0, len(self.lahsa_capacity)):
+            if self.lahsa_capacity[i] - tally[i] < 0:
+                return False, None
+
+        # actually set the subtraction value if we can accommodate
+        for i in range(0, len(self.lahsa_capacity)):
+            self.lahsa_capacity[i] -= tally[i]
+
+        return True, first_applicant
+
     def _insert_qualifying_into_spla(self):
         """ Insert the remaining qualifying SPLA applicants into SPLA """
+        global spla_leaf_nodes
+
+        can_insert_greedy, first_applicant = self.check_greedy_insert_spla()
+        if can_insert_greedy is True:  # greedy worked
+            if self.depth == 0:
+                self.move_taken = first_applicant.applicant_id
+        else:  # do recursive selection
+            capacity_hash = str(self.spla_capacity)
+            selected_hash = str(sorted(self.applicants_selected))
+
+            if spla_leaf_nodes.get(capacity_hash) is None:
+                spla_leaf_nodes[capacity_hash] = {}
+
+            if spla_leaf_nodes.get(capacity_hash).get(selected_hash) is None:
+                # compute leaf node for the first time
+                answer = self._get_min_score(0, self._get_eligible_spla(),
+                                             self.spla_capacity, set())
+                spla_leaf_nodes[capacity_hash][selected_hash] = answer
+
+            s = spla_leaf_nodes.get(capacity_hash).get(selected_hash)
+            self.spla_score = s[0]
+            if len(s[1]) > 0:
+                self.move_taken = sorted(s[1])[0].applicant_id
+
+    def _get_eligible_spla(self):
+        """ Filters out selected applicants and lahsa applicants """
+        a = []
         for i in range(0, len(self.all_applicants)):
-            if i in self.applicants_selected:  # already selected this person
-                continue
             applicant = self.all_applicants[i]
-            if applicant.is_spla:  # spla or both
-                new_cap = self._insert_applicant_into_spla(applicant)
-                if new_cap is not None:
-                    if applicant.is_lahsa:  # is both
-                        self.num_both -= 1
-                    else:
-                        self.num_spla -= 1
-                    self.spla_capacity = new_cap
-                    self.applicants_selected.append(i)
+            if i not in self.applicants_selected and applicant.is_spla:
+                a.append(applicant)
+        return a
+
+    def _get_eligible_lahsa(self):
+        """ Filters out selected applicants and spla applicants """
+        a = []
+        for i in range(0, len(self.all_applicants)):
+            applicant = self.all_applicants[i]
+            if i not in self.applicants_selected and applicant.is_lahsa:
+                a.append(applicant)
+        return a
 
     def _insert_qualifying_into_lahsa(self):
         """ Insert the reamining qualifying LAHSA applicants into LAHSA """
-        for i in range(0, len(self.all_applicants)):
-            if i in self.applicants_selected:  # already selected this person
-                continue
-            applicant = self.all_applicants[i]
-            if applicant.is_lahsa:  # lahsa or both
-                new_cap = self._insert_applicant_into_lahsa(applicant)
-                if new_cap is not None:
-                    if applicant.is_spla:
-                        self.num_both -= 1
-                    else:
-                        self.num_lahsa -= 1
-                    self.spla_capacity = new_cap
-                    self.applicants_selected.append(i)
+        global lahsa_leaf_nodes
+
+        can_insert_greedy, _ = self.check_greedy_insert_lahsa()
+        if can_insert_greedy is True:  # greedy worked
+            return
+        else:  # do recursive selection
+            capacity_hash = str(self.lahsa_capacity)
+            selected_hash = str(sorted(self.applicants_selected))
+
+            if lahsa_leaf_nodes.get(capacity_hash) is None:
+                lahsa_leaf_nodes[capacity_hash] = {}
+
+            if lahsa_leaf_nodes.get(capacity_hash).get(selected_hash) is None:
+                # compute leaf node for the first time
+                answer = self._get_min_score(0, self._get_eligible_lahsa(),
+                                             self.lahsa_capacity, set())
+                lahsa_leaf_nodes[capacity_hash][selected_hash] = answer
+
+            s = lahsa_leaf_nodes.get(capacity_hash).get(selected_hash)
+            self.lahsa_score = s[0]
+            if len(s[1]) > 0:
+                self.move_taken = sorted(s[1])[0].applicant_id
+
+    def _get_min_score(self, j, applicants,
+                       curr_capacities, applicants_selected):
+        """ Computes leaf node score when greedy placement fails """
+        if curr_capacities is None:
+            return float('inf'), applicants_selected
+        if j >= len(applicants):
+            return sum(curr_capacities), applicants_selected
+
+        applicant = applicants[j]
+        applicants_selected.add(applicant)
+        without_applicant = {a for a in applicants_selected if a != applicant}
+
+        curr_capacities_with_j = [None] * 7
+
+        for i in range(0, len(curr_capacities)):
+            curr_capacities_with_j[i] = curr_capacities[i]
+            if applicant.days_needed[i] == '1':
+                curr_capacities_with_j[i] -= 1
+            if curr_capacities_with_j[i] < 0:
+                curr_capacities_with_j = None
+                break
+
+        return min(
+            self._get_min_score(j + 1,
+                                applicants,
+                                curr_capacities,
+                                without_applicant
+                                ),
+            self._get_min_score(j + 1,
+                                applicants,
+                                curr_capacities_with_j,
+                                applicants_selected
+                                )
+        )
 
     def create_children(self):
         if self.num_both <= 0:
-            if sum(self.spla_capacity) != 0:  # spla has space
+            if sum(self.spla_capacity) > 0 and self.num_spla > 0:
                 self._insert_qualifying_into_spla()
-            if sum(self.lahsa_capacity) != 0:
+            if sum(self.lahsa_capacity) > 0 and self.num_lahsa > 0:
                 self._insert_qualifying_into_lahsa()  # lahsa has space
             return
 
-        # spla ran out, append rest to lahsa
-        elif sum(self.spla_capacity) <= 0 and self.num_both <= 0:
+        if sum(self.spla_capacity) == 0:
             self._insert_qualifying_into_lahsa()
             return
-
-        # lahsa ran out, append rest to spla
-        if sum(self.lahsa_capacity) <= 0 and self.num_both <= 0:
+        if sum(self.lahsa_capacity) == 0:
             self._insert_qualifying_into_spla()
             return
 
@@ -110,9 +253,8 @@ class Node:
         self._create_children_driver()
 
     def _create_children_driver(self):
-        can_place_something_spla = False
-        can_place_something_lahsa = False
-
+        spla_can_fit = False
+        lahsa_can_fit = False
         for i in range(0, len(self.all_applicants)):
             if i in self.applicants_selected:  # already selected
                 continue
@@ -120,7 +262,7 @@ class Node:
             if self.depth % 2 == 0 and applicant.is_spla:  # spla or both
                 new_capacities = self._insert_applicant_into_spla(applicant)
                 if new_capacities is not None:  # can place this person
-                    can_place_something_spla = True
+                    spla_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
                     self.children.append(
@@ -134,6 +276,8 @@ class Node:
                             num_lahsa=self.num_lahsa,
                             num_both=(self.num_both - 1 if
                                       applicant.is_lahsa else self.num_both),
+                            num_beds=self.num_beds,
+                            num_parking_spots=self.num_parking_spots,
                             depth=self.depth + 1,
                             move_taken=applicant.applicant_id
                         )
@@ -141,7 +285,7 @@ class Node:
             elif self.depth % 2 == 1 and applicant.is_lahsa:
                 new_capacities = self._insert_applicant_into_lahsa(applicant)
                 if new_capacities is not None:
-                    can_place_something_lahsa = True
+                    lahsa_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
                     self.children.append(
@@ -155,15 +299,15 @@ class Node:
                                        applicant.is_spla else self.num_lahsa),
                             num_both=(self.num_both - 1 if
                                       applicant.is_spla else self.num_both),
+                            num_beds=self.num_beds,
+                            num_parking_spots=self.num_parking_spots,
                             depth=self.depth + 1,
                             move_taken=applicant.applicant_id
                         )
                     )
-        # nothing fits into spla
-        if not can_place_something_spla and self.depth % 2 == 0:
+        if not spla_can_fit and self.depth % 2 == 0:
             self._insert_qualifying_into_lahsa()
-        # nothing fits into lahsa
-        elif not can_place_something_lahsa and self.depth % 2 == 1:
+        if not lahsa_can_fit and self.depth % 2 == 1:
             self._insert_qualifying_into_spla()
 
 
@@ -190,6 +334,7 @@ class Parser:
                                                              self.s)])
         # Removes preselected applicants from all_applicants, sorts list
         self._remove_preselected_applicants()
+        self._remove_dummy_applicants()
 
         # Arrays of Capacities for each day, counting down
         self.lahsa_capacity = [self.b] * 7
@@ -205,6 +350,20 @@ class Parser:
 
         # sets the number of applicants in each pool
         self._set_pool_counts()
+
+    def _remove_dummy_applicants(self):
+        """ Remove applicants that dont qualify for either
+            and dont request any days
+        """
+        new_applicants = []
+        for applicant in self.all_applicants:
+            if not applicant.is_lahsa and not applicant.is_spla:
+                continue
+            if '1' not in applicant.days_needed:
+                continue
+            new_applicants.append(applicant)
+        new_applicants.sort()
+        self.all_applicants = new_applicants
 
     def _remove_preselected_applicants(self):
         """ Removes preselected applicants from the list of all applicants """

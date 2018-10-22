@@ -8,10 +8,18 @@ class MultiAgentMinMax:
         self.root = root
 
     def utility(self, state):
-        """ Returns tuple of scores: (spla, lahsa) """
+        """
+        Returns tuple of scores: (spla, lahsa)
+        """
         s, l = sum(state.spla_capacity), sum(state.lahsa_capacity)
-        state.spla_score = s
-        state.lahsa_score = l
+        if not state.spla_score:
+            state.spla_score = s
+        else:
+            s = state.spla_score
+        if not state.lahsa_score:
+            state.lahsa_score = l
+        else:
+            l = state.lahsa_score
         return s, l
 
     def lahsa_min_value(self, state):
@@ -43,68 +51,14 @@ class MultiAgentMinMax:
 
     def run_minimax(self):
         scores = self.minimax(self.root)
+        if len(self.root.children) == 0:
+            return self.root.move_taken
         best_moves = []
         for child in self.root.children:
             if child.spla_score == scores[0]:
                 best_moves.append(child.move_taken)
         print('Best Moves: {}'.format(best_moves))
         return sorted(best_moves)[0], scores
-
-
-class ExpectiminmaxSolver:
-    def __init__(self, root):
-        self.root = root
-
-    def utility(self, state):
-        """
-        Returns the score(s) for a leaf node
-        """
-        s = sum(state.spla_capacity)
-        print('Leaf Node: {}, Score: {}'.format(state, s))
-        state.spla_score = s
-        return s
-
-    def min_value(self, state):
-        print('Calculating Min Score: {}'.format(state))
-        v = float('inf')
-        for child in state.children:
-            v = min(v, self.expectiminmax(child))
-        print('Min Value Node: {}, Score: {}'.format(state, v))
-        state.spla_score = v
-
-        return v
-
-    def expected_value(self, state):
-        print('Calculating Chance Val: {}'.format(state))
-        v = 0
-        for child in state.children:
-            pr = 1.0/len(state.children)  # each child is equally probable
-            v += pr * self.expectiminmax(child)
-        print('Chance Node: {}, Score: {}'.format(state, v))
-        state.spla_score = v
-        return v
-
-    def run_expectiminmax(self):
-        """
-        Runs expectiminmax
-        returns (best first move, score)
-        """
-        score = self.expectiminmax(self.root)
-        best_moves = []
-        for child in self.root.children:
-            if child.spla_score == score:
-                best_moves.append(child.move_taken)
-
-        return sorted(best_moves)[0], score
-
-    def expectiminmax(self, state):
-        print('\nCurr Node: {}'.format(state))
-        if len(state.children) == 0:  # leaf node
-            return self.utility(state)
-        if state.depth % 2 == 0:  # spla -> min node (good scores are small)
-            return self.min_value(state)
-        elif state.depth % 2 == 1:  # lahsa -> chance node (expected value)
-            return self.expected_value(state)
 
 
 def print_initial_state(p):
@@ -138,23 +92,29 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'input3.txt'
+    INPUT = 'input8.txt'
     p = Parser(INPUT)
 
     print_initial_state(p)
-
     start = time.time()
-
     root = Node(
             all_applicants=p.all_applicants,
             applicants_selected=[],
             spla_capacity=p.spla_capacity, lahsa_capacity=p.lahsa_capacity,
             num_spla=p.num_spla, num_lahsa=p.num_lahsa, num_both=p.num_both,
-            depth=0, move_taken=''
+            depth=0, move_taken='', num_beds=p.b, num_parking_spots=p.p
             )
     end = time.time()
 
-    print('Tree Building Done: {}'.format(end - start))
+    print('Root: {}'.format(root))
 
+    print('Tree Building Done: {}'.format(end - start))
     solver = MultiAgentMinMax(root)
-    print('MultiAgentMinMax: {}'.format(solver.run_minimax()))
+    answer = solver.run_minimax()
+    print('MultiAgentMinMax: {}'.format(answer))
+
+    with open('output.txt', 'w') as f:
+        if len(answer) > 0:
+            f.write(str(answer[0]))
+        else:
+            f.write("")
