@@ -92,14 +92,14 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'input8.txt'
+    INPUT = 'input9.txt'
     p = Parser(INPUT)
 
     print_initial_state(p)
     start = time.time()
     root = Node(
             all_applicants=p.all_applicants,
-            applicants_selected=[],
+            applicants_selected=[], spla_blacklist=[], lahsa_blacklist=[],
             spla_capacity=p.spla_capacity, lahsa_capacity=p.lahsa_capacity,
             num_spla=p.num_spla, num_lahsa=p.num_lahsa, num_both=p.num_both,
             depth=0, move_taken='', num_beds=p.b, num_parking_spots=p.p
