@@ -92,7 +92,7 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'test/input0135.txt'
+    INPUT = 'test/input0134.txt'
     p = Parser(INPUT)
 
     print_initial_state(p)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     answer = solver.run_minimax()
     print('MultiAgentMinMax: {}'.format(answer))
 
-    with open('output.txt', 'w') as f:
+    with open('output0.txt', 'w') as f:
         if len(answer) > 0:
             f.write(str(answer[0]))
         else:

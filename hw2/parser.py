@@ -2,6 +2,7 @@ from applicant import Applicant
 
 spla_leaf_nodes = {}
 lahsa_leaf_nodes = {}
+node_set = set()
 
 
 class Node:
@@ -36,6 +37,11 @@ class Node:
                     self.applicants_selected, self.depth,
                     self.move_taken
                 )
+
+    def _create_hash_str(self, spla_capacity, lahsa_capacity,
+                         applicants_selected, depth):
+        return hash(str(spla_capacity) + str(lahsa_capacity)
+                    + str(sorted(applicants_selected)) + str(depth))
 
     def _insert_applicant_into_spla(self, applicant):
         """ Tries to insert an applicant into SPLA capacities
@@ -256,7 +262,7 @@ class Node:
         self._create_children_driver()
 
     def _create_children_driver(self):
-        # global node_set
+        global node_set
         spla_can_fit = False
         lahsa_can_fit = False
         new_spla_bl = None
@@ -276,28 +282,36 @@ class Node:
                     spla_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
-                    self.children.append(
-                        Node(
-                            all_applicants=self.all_applicants,
-                            applicants_selected=new_selected,
-                            spla_blacklist=(new_spla_bl
-                                            or self.spla_blacklist),
-                            lahsa_blacklist=self.lahsa_blacklist,
-                            spla_capacity=new_capacities,
-                            lahsa_capacity=self.lahsa_capacity,
-                            num_spla=(self.num_spla - 1 if not
-                                      applicant.is_lahsa
-                                      else self.num_spla),
-                            num_lahsa=self.num_lahsa,
-                            num_both=(self.num_both - 1 if
-                                      applicant.is_lahsa
-                                      else self.num_both),
-                            num_beds=self.num_beds,
-                            num_parking_spots=self.num_parking_spots,
-                            depth=self.depth + 1,
-                            move_taken=applicant.applicant_id
-                        )
+                    hash = self._create_hash_str(
+                        spla_capacity=new_capacities,
+                        lahsa_capacity=self.lahsa_capacity,
+                        applicants_selected=new_selected,
+                        depth=self.depth + 1
                     )
+                    if hash not in node_set:
+                        node_set.add(hash)
+                        self.children.append(
+                            Node(
+                                all_applicants=self.all_applicants,
+                                applicants_selected=new_selected,
+                                spla_blacklist=(new_spla_bl
+                                                or self.spla_blacklist),
+                                lahsa_blacklist=self.lahsa_blacklist,
+                                spla_capacity=new_capacities,
+                                lahsa_capacity=self.lahsa_capacity,
+                                num_spla=(self.num_spla - 1 if not
+                                          applicant.is_lahsa
+                                          else self.num_spla),
+                                num_lahsa=self.num_lahsa,
+                                num_both=(self.num_both - 1 if
+                                          applicant.is_lahsa
+                                          else self.num_both),
+                                num_beds=self.num_beds,
+                                num_parking_spots=self.num_parking_spots,
+                                depth=self.depth + 1,
+                                move_taken=applicant.applicant_id
+                            )
+                        )
             elif self.depth % 2 == 1 and applicant.is_lahsa:
                 if i in self.lahsa_blacklist:
                     continue
@@ -309,28 +323,36 @@ class Node:
                     lahsa_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
-                    self.children.append(
-                        Node(
-                            all_applicants=self.all_applicants,
-                            applicants_selected=new_selected,
-                            spla_blacklist=self.spla_capacity,
-                            lahsa_blacklist=(new_lahsa_bl
-                                             or self.lahsa_blacklist),
-                            spla_capacity=self.spla_capacity,
-                            lahsa_capacity=new_capacities,
-                            num_spla=self.num_spla,
-                            num_lahsa=(self.num_lahsa - 1 if not
-                                       applicant.is_spla
-                                       else self.num_lahsa),
-                            num_both=(self.num_both - 1 if
-                                      applicant.is_spla
-                                      else self.num_both),
-                            num_beds=self.num_beds,
-                            num_parking_spots=self.num_parking_spots,
-                            depth=self.depth + 1,
-                            move_taken=applicant.applicant_id
-                        )
+                    hash = self._create_hash_str(
+                        spla_capacity=self.spla_capacity,
+                        lahsa_capacity=new_capacities,
+                        applicants_selected=new_selected,
+                        depth=self.depth + 1
                     )
+                    if hash not in node_set:
+                        node_set.add(hash)
+                        self.children.append(
+                            Node(
+                                all_applicants=self.all_applicants,
+                                applicants_selected=new_selected,
+                                spla_blacklist=self.spla_capacity,
+                                lahsa_blacklist=(new_lahsa_bl
+                                                 or self.lahsa_blacklist),
+                                spla_capacity=self.spla_capacity,
+                                lahsa_capacity=new_capacities,
+                                num_spla=self.num_spla,
+                                num_lahsa=(self.num_lahsa - 1 if not
+                                           applicant.is_spla
+                                           else self.num_lahsa),
+                                num_both=(self.num_both - 1 if
+                                          applicant.is_spla
+                                          else self.num_both),
+                                num_beds=self.num_beds,
+                                num_parking_spots=self.num_parking_spots,
+                                depth=self.depth + 1,
+                                move_taken=applicant.applicant_id
+                            )
+                        )
         if not spla_can_fit and self.depth % 2 == 0:
             self._insert_qualifying_into_lahsa()
         if not lahsa_can_fit and self.depth % 2 == 1:

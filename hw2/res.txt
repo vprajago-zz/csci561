@@ -36,14 +36,14 @@ input0116: 00002 Time: 0s
 input0117: 00002 Time: 0s
 input0118: 00006 Time: 0s
 input0120: 00011 Time: 0s
-input0122: 00004 Time: 0s // slow gets 00008
-input0123: 00016 Time: 0s // slow gets 00003
+input0122: 00004 Time: 0s // slow gets 00008, fast gets 00008
+input0123: 00016 Time: 0s // slow gets 00003, fast gets 00003
 input0126: 00002 Time: 0s
 input0129: 00003 Time: 0s
 input0132: 00018 Time: 0s
 input0133: 00008 Time: 0s
-input0134: 00027 Time: 0s // 0010 - slow version gets 0027
-input0135: 00007 Time: 0s // slow gets 00009
+input0134: 00027 Time: 0s // slow version gets 0027, fast gets 0010 !!!!!
+input0135: 00007 Time: 0s // slow gets 00009, fast gets 00009
 input0139: 00028 Time: 0s
 input0145: 00018 Time: 2s
 input0146: 00007 Time: 0s
