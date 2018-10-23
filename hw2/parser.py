@@ -2,15 +2,13 @@ from applicant import Applicant
 
 spla_leaf_nodes = {}
 lahsa_leaf_nodes = {}
-node_to_children = {}
 
 
 class Node:
     def __init__(self, all_applicants, applicants_selected,
                  spla_blacklist, lahsa_blacklist, spla_capacity,
                  lahsa_capacity, depth, num_spla, num_lahsa, num_both,
-                 move_taken, num_parking_spots, num_beds,
-                 will_create_children=True):
+                 move_taken, num_parking_spots, num_beds):
 
         self.all_applicants = all_applicants  # list of all applicants
         self.applicants_selected = applicants_selected  # list of indices
@@ -29,8 +27,7 @@ class Node:
         self.spla_blacklist = spla_blacklist
         self.lahsa_blacklist = lahsa_blacklist
 
-        if will_create_children:
-            self.create_children()
+        self.create_children()
 
     def __str__(self):
         return 'Children: {}, SPLA Cap: {}, LAHSA Cap: {}, num_spla: {}, num_lahsa: {}, num_both: {}, applicants_selected: {}, depth: {}, move: {}'.format(
@@ -39,10 +36,6 @@ class Node:
                     self.applicants_selected, self.depth,
                     self.move_taken
                 )
-
-    def _create_hash_str(self, spla_capacity, lahsa_capacity,
-                         applicants_selected, depth):
-        return (str(spla_capacity) + str(lahsa_capacity) + str(sorted(applicants_selected)) + str(depth))
 
     def _insert_applicant_into_spla(self, applicant):
         """ Tries to insert an applicant into SPLA capacities
@@ -158,7 +151,7 @@ class Node:
             if spla_leaf_nodes.get(capacity_hash).get(selected_hash) is None:
                 # compute leaf node for the first time
                 answer = self._get_min_score(0, self._get_eligible_spla(),
-                                             self.spla_capacity, set())
+                                             self.spla_capacity, [])
                 spla_leaf_nodes[capacity_hash][selected_hash] = answer
 
             s = spla_leaf_nodes.get(capacity_hash).get(selected_hash)
@@ -201,7 +194,7 @@ class Node:
             if lahsa_leaf_nodes.get(capacity_hash).get(selected_hash) is None:
                 # compute leaf node for the first time
                 answer = self._get_min_score(0, self._get_eligible_lahsa(),
-                                             self.lahsa_capacity, set())
+                                             self.lahsa_capacity, [])
                 lahsa_leaf_nodes[capacity_hash][selected_hash] = answer
 
             s = lahsa_leaf_nodes.get(capacity_hash).get(selected_hash)
@@ -218,8 +211,8 @@ class Node:
             return sum(curr_capacities), applicants_selected
 
         applicant = applicants[j]
-        applicants_selected.add(applicant)
-        without_applicant = {a for a in applicants_selected if a != applicant}
+        applicants_selected.append(applicant)
+        without_applicant = [a for a in applicants_selected if a != applicant]
 
         curr_capacities_with_j = [None] * 7
 
@@ -263,7 +256,7 @@ class Node:
         self._create_children_driver()
 
     def _create_children_driver(self):
-        global node_to_children
+        # global node_set
         spla_can_fit = False
         lahsa_can_fit = False
         new_spla_bl = None
@@ -283,17 +276,8 @@ class Node:
                     spla_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
-                    hash = self._create_hash_str(
-                        spla_capacity=new_capacities,
-                        lahsa_capacity=self.lahsa_capacity,
-                        applicants_selected=new_selected,
-                        depth=self.depth + 1
-                    )
-                    # The following nodes have the same children
-                    # SPLA 1, LAHSA 2, SPLA 3 ....
-                    # SPLA 3, LAHSA 2, SPLA 1 ....
-                    if hash not in node_to_children:
-                        node = Node(
+                    self.children.append(
+                        Node(
                             all_applicants=self.all_applicants,
                             applicants_selected=new_selected,
                             spla_blacklist=(new_spla_bl
@@ -313,38 +297,7 @@ class Node:
                             depth=self.depth + 1,
                             move_taken=applicant.applicant_id
                         )
-                        self.children.append(node)
-                        node_to_children[hash] = node.children
-
-                    # seen a node like this before, dont create children
-                    else:
-                        # create the node (without children)
-                        node = Node(
-                            all_applicants=self.all_applicants,
-                            applicants_selected=new_selected,
-                            spla_blacklist=(new_spla_bl
-                                            or self.spla_blacklist),
-                            lahsa_blacklist=self.lahsa_blacklist,
-                            spla_capacity=new_capacities,
-                            lahsa_capacity=self.lahsa_capacity,
-                            num_spla=(self.num_spla - 1 if not
-                                      applicant.is_lahsa
-                                      else self.num_spla),
-                            num_lahsa=self.num_lahsa,
-                            num_both=(self.num_both - 1 if
-                                      applicant.is_lahsa
-                                      else self.num_both),
-                            num_beds=self.num_beds,
-                            num_parking_spots=self.num_parking_spots,
-                            depth=self.depth + 1,
-                            move_taken=applicant.applicant_id,
-                            will_create_children=False
-                        )
-                        # set children
-                        node.children = list(node_to_children[hash])
-                        # append node to current node's children
-                        self.children.append(node)
-
+                    )
             elif self.depth % 2 == 1 and applicant.is_lahsa:
                 if i in self.lahsa_blacklist:
                     continue
@@ -356,14 +309,8 @@ class Node:
                     lahsa_can_fit = True
                     new_selected = list(self.applicants_selected)
                     new_selected.append(i)
-                    hash = self._create_hash_str(
-                        spla_capacity=self.spla_capacity,
-                        lahsa_capacity=new_capacities,
-                        applicants_selected=new_selected,
-                        depth=self.depth + 1
-                        )
-                    if hash not in node_to_children:
-                        node = Node(
+                    self.children.append(
+                        Node(
                             all_applicants=self.all_applicants,
                             applicants_selected=new_selected,
                             spla_blacklist=self.spla_capacity,
@@ -383,33 +330,7 @@ class Node:
                             depth=self.depth + 1,
                             move_taken=applicant.applicant_id
                         )
-                        node_to_children[hash] = node.children
-                        self.children.append(node)
-                    else:
-                        node = Node(
-                            all_applicants=self.all_applicants,
-                            applicants_selected=new_selected,
-                            spla_blacklist=self.spla_capacity,
-                            lahsa_blacklist=(new_lahsa_bl
-                                             or self.lahsa_blacklist),
-                            spla_capacity=self.spla_capacity,
-                            lahsa_capacity=new_capacities,
-                            num_spla=self.num_spla,
-                            num_lahsa=(self.num_lahsa - 1 if not
-                                       applicant.is_spla
-                                       else self.num_lahsa),
-                            num_both=(self.num_both - 1 if
-                                      applicant.is_spla
-                                      else self.num_both),
-                            num_beds=self.num_beds,
-                            num_parking_spots=self.num_parking_spots,
-                            depth=self.depth + 1,
-                            move_taken=applicant.applicant_id,
-                            will_create_children=False
-                        )
-                        node.children = list(node_to_children[hash])
-                        self.children.append(node)
-
+                    )
         if not spla_can_fit and self.depth % 2 == 0:
             self._insert_qualifying_into_lahsa()
         if not lahsa_can_fit and self.depth % 2 == 1:
