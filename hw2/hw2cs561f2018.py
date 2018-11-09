@@ -1,3 +1,4 @@
+import time
 # from parser import Node, Parser
 
 spla_leaf_nodes = {}
@@ -499,7 +500,7 @@ class Applicant:
         self.has_medical_conditions = record_string[10] is 'Y'
         self.has_car = record_string[11] is 'Y'
         self.has_license = record_string[12] is 'Y'
-        self.days_needed = list(record_string[13:])
+        self.days_needed = list(record_string[13:].rstrip())
 
         # Qualification Checks
         self.is_spla = (not self.has_medical_conditions
@@ -612,8 +613,12 @@ def print_initial_state(p):
 
 
 if __name__ == '__main__':
-    INPUT = 'input.txt'
+    INPUT = 'grading_case/input3.txt'
     p = Parser(INPUT)
+
+    start = time.time()
+
+    print_initial_state(p)
 
     print_initial_state(p)
     root = Node(
@@ -633,3 +638,7 @@ if __name__ == '__main__':
             f.write(str(answer[0]))
         else:
             f.write(answer)
+
+    end = time.time()
+    print('Time Elapsed: {}'.format(end - start))
+    print('Answer: {}'.format(answer))
